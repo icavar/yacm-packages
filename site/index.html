@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YACM packages</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1d232b; --bg: #fff; --muted: #5b6672; --code: #f2f4f7; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #e6e9ee; --bg: #14181d; --muted: #9aa5b1; --code: #1f252c; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
+  p.lead { color: var(--muted); margin-top: 0; }
+  pre { background: var(--code); padding: .75rem 1rem; border-radius: 6px; overflow-x: auto; font-size: .9rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  a { color: #2f6fd6; }
+</style>
+</head>
+<body>
+<main>
+<h1>YACM packages</h1>
+<p class="lead">The apt and dnf repository for <a href="https://yacm.app">YACM</a>, the SSH, telnet and serial connection manager.</p>
+
+<p>The <code>.deb</code> and <code>.rpm</code> packages on the
+<a href="https://github.com/icavar/yacm/releases">release page</a> add this
+repository when you install them, so <code>apt upgrade</code> or
+<code>dnf upgrade</code> bring new versions. To add it by hand instead:</p>
+
+<h2>Ubuntu 22.04+ and Debian 12+</h2>
+<pre><code>sudo curl -fsSLo /usr/share/keyrings/yacm-packages.asc https://pkg.yacm.app/yacm.asc
+sudo curl -fsSLo /etc/apt/sources.list.d/yacm.sources https://pkg.yacm.app/yacm.sources
+sudo apt update &amp;&amp; sudo apt install yacm</code></pre>
+
+<h2>Fedora</h2>
+<pre><code>sudo curl -fsSLo /etc/yum.repos.d/yacm.repo https://pkg.yacm.app/yacm.repo
+sudo dnf install yacm</code></pre>
+
+<h2>Signing key</h2>
+<p>The repository and the <code>.rpm</code> packages are signed with
+<a href="yacm.asc">"YACM packages &lt;support@yacm.app&gt;"</a>,
+fingerprint <code>9C9A 2975 7D17 AFD5 51B6 0BFB 1FA9 9EB2 609B DAAF</code>.
+The packages are built by the
+<a href="https://github.com/icavar/yacm/actions/workflows/release.yml">release workflow</a>
+and checked against their build provenance before they are published here
+(<a href="https://github.com/icavar/yacm-packages">how</a>).</p>
+</main>
+</body>
+</html>

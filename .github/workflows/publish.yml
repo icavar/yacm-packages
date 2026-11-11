@@ -1,0 +1,118 @@
+name: Publish
+
+# Builds the apt and dnf repository pkg.yacm.app from the .deb and .rpm of
+# the latest YACM release and publishes it with GitHub Pages. The packages
+# are taken only when their build provenance shows they were built by the
+# YACM release workflow. The repository index and the .rpm packages are
+# signed with the key in the environment "signing".
+#
+# Runs every three hours (and does nothing while the release is already
+# published), after changes to this repository, and from Actions > Publish >
+# Run workflow, which always rebuilds.
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  SOURCE_REPO: icavar/yacm
+  KEY: 9C9A29757D17AFD551B60BFB1FA99EB2609BDAAF
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: signing
+    permissions:
+      contents: read
+      attestations: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Latest release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          tag=$(gh release view --repo "$SOURCE_REPO" --json tagName -q .tagName)
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          live=$(curl -fsS https://pkg.yacm.app/release.txt 2>/dev/null || true)
+          if [ "$EVENT" = schedule ] && [ "$live" = "$tag" ]; then
+            echo "skip=true" >>"$GITHUB_OUTPUT"
+            echo "$tag is already published."
+          else
+            echo "Publishing $tag (published now: ${live:-nothing})."
+          fi
+
+      - name: Download and verify the packages
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          mkdir in
+          assets=$(gh release view "$TAG" --repo "$SOURCE_REPO" --json assets -q '.assets[].name')
+          for name in "yacm-${TAG#v}-linux-amd64.deb" "yacm-${TAG#v}-linux-amd64.rpm"; do
+            if ! grep -qxF "$name" <<<"$assets"; then
+              echo "::notice::$TAG has no $name"
+              continue
+            fi
+            gh release download "$TAG" --repo "$SOURCE_REPO" --pattern "$name" --dir in
+            gh attestation verify "in/$name" --repo "$SOURCE_REPO" \
+              --signer-workflow "$SOURCE_REPO/.github/workflows/release.yml"
+          done
+
+      - name: Install the repository tools
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends apt-utils createrepo-c rpm
+
+      - name: Build and sign the repository
+        if: steps.check.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.check.outputs.tag }}
+          PKG_GPG_KEY: ${{ secrets.PKG_GPG_KEY }}
+          PKG_GPG_PASSPHRASE: ${{ secrets.PKG_GPG_PASSPHRASE }}
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/gnupg" PASSPHRASE_FILE="$RUNNER_TEMP/passphrase"
+          trap 'rm -rf "$GNUPGHOME" "$PASSPHRASE_FILE"' EXIT
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s\n' "$PKG_GPG_KEY" | gpg --batch --quiet --import
+          ( umask 077; printf '%s' "$PKG_GPG_PASSPHRASE" >"$PASSPHRASE_FILE" )
+          gpg --batch --list-secret-keys "$KEY" >/dev/null || { echo "::error::PKG_GPG_KEY is not the key $KEY"; exit 1; }
+          bash build.sh in out "$TAG"
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: steps.check.outputs.skip != 'true'
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.skip != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

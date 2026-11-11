@@ -1,0 +1,9 @@
+# YACM packages (https://pkg.yacm.app).
+# Set enabled=0 to stop updates from there.
+[yacm]
+name=YACM
+baseurl=https://pkg.yacm.app/rpm
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://pkg.yacm.app/yacm.asc
