@@ -1,6 +1,6 @@
 # yacm-packages
 
-The apt and dnf repository for [YACM](https://github.com/icavar/yacm),
+The apt and dnf repository for [YACM](https://github.com/yacm-app/yacm),
 published at <https://pkg.yacm.app>.
 
 The `.deb` and `.rpm` packages of YACM add this repository when they are

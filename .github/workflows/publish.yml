@@ -24,7 +24,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SOURCE_REPO: icavar/yacm
+  SOURCE_REPO: yacm-app/yacm
+  # Releases up to 0.9.2 were built before the move to yacm-app.
+  OLD_SOURCE_REPO: icavar/yacm
   KEY: 9C9A29757D17AFD551B60BFB1FA99EB2609BDAAF
 
 jobs:
@@ -72,8 +74,12 @@ jobs:
               continue
             fi
             gh release download "$TAG" --repo "$SOURCE_REPO" --pattern "$name" --dir in
-            gh attestation verify "in/$name" --repo "$SOURCE_REPO" \
-              --signer-workflow "$SOURCE_REPO/.github/workflows/release.yml"
+            ok=
+            for src in "$SOURCE_REPO" "$OLD_SOURCE_REPO"; do
+              if gh attestation verify "in/$name" --repo "$src" \
+                --signer-workflow "$src/.github/workflows/release.yml"; then ok=1; break; fi
+            done
+            [ -n "$ok" ] || { echo "::error::$name: no build provenance from the YACM release workflow"; exit 1; }
           done
 
       - name: Install the repository tools
